@@ -1,0 +1,63 @@
+﻿@inject IJSRuntime JSRuntime
+
+<RadzenCard class="counter-component rz-my-4 rz-mx-2">
+    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" JustifyContent="JustifyContent.SpaceBetween">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+            <RadzenIcon Icon="add_circle" />
+            <RadzenText TextStyle="TextStyle.H6" class="rz-mb-0">Counter</RadzenText>
+        </RadzenStack>
+        <RadzenBadge BadgeStyle="BadgeStyle.Info" IsPill="true" Text="@currentCount.ToString()" />
+    </RadzenStack>
+
+    <RadzenProgressBar Value="@currentCount" Max="10" class="rz-my-3" />
+
+    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.End" Gap="1rem">
+        <RadzenButton Click="DecrementCount" Text="Decrease" ButtonStyle="ButtonStyle.Light" Disabled="@(currentCount <= 0)" />
+        <RadzenButton Click="IncrementCount" Text="Increase" ButtonStyle="ButtonStyle.Primary" Disabled="@(currentCount >= 10)" />
+    </RadzenStack>
+</RadzenCard>
+
+@code {
+    private int currentCount = 0;
+
+    private async Task IncrementCount()
+    {
+        if (currentCount < 10)
+        {
+            currentCount++;
+            await AnimateValue();
+        }
+    }
+
+    private async Task DecrementCount()
+    {
+        if (currentCount > 0)
+        {
+            currentCount--;
+            await AnimateValue();
+        }
+    }
+
+    private async Task AnimateValue()
+    {
+        await JSRuntime.InvokeVoidAsync("animateValue", currentCount);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                window.animateValue = function(value) {
+                    const badge = document.querySelector('.counter-component .rz-badge');
+                    if (badge) {
+                        badge.classList.add('pulse');
+                        setTimeout(() => badge.classList.remove('pulse'), 300);
+                    }
+                }
+            ");
+        }
+    }
+}
+
+

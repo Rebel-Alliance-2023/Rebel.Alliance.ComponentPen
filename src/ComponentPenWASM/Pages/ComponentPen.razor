@@ -1,0 +1,314 @@
+﻿@page "/componentpen"
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Rendering
+@using Microsoft.JSInterop
+@using System.Reflection
+@using System.Linq
+@using System.Text.RegularExpressions
+@using Radzen
+@using Radzen.Blazor
+@inject IJSRuntime JSRuntime
+@inject NotificationService NotificationService
+
+<RadzenNotification />
+
+<div class="component-pen-container">
+    <RadzenCard class="rz-background-color-primary-lighter rz-shadow-0 rz-border-radius-0 rz-p-4">
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+            <RadzenIcon Icon="code" class="rz-color-primary-dark" Style="font-size: 2rem;" />
+            <RadzenText TextStyle="TextStyle.H3" class="rz-color-primary-dark rz-m-0">ComponentPen</RadzenText>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenCard class="rz-my-4 rz-mx-4 rz-p-0">
+        <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center" class="rz-p-4">
+            <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="1rem">
+                <RadzenIcon Icon="edit" />
+                <RadzenLabel Text="Component Name:" For="componentName" />
+                <div class="rz-p-0 rz-display-flex rz-align-items-center">
+                    <RadzenDropDown @bind-Value="selectedComponentName" Data="@savedComponentNames" Change="@OnDropDownChange"
+                                    AllowClear="true" Placeholder="Select component" Style="width: 200px;" />
+                    <RadzenTextBox @bind-Value="componentName" Placeholder="Enter component name" Style="width: 200px; margin-left: 8px;" />
+                </div>
+            </RadzenStack>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                <RadzenButton Click="SaveComponent" Text="Save" ButtonStyle="ButtonStyle.Primary" Icon="save" />
+                <RadzenButton Click="LoadComponent" Text="Load" ButtonStyle="ButtonStyle.Secondary" Icon="folder_open" />
+            </RadzenStack>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenSplitter Orientation="Orientation.Horizontal" class="rz-mx-4 component-pen-content">
+        <RadzenSplitterPane Size="50%" Min="30%" Max="70%">
+            <RadzenCard class="editor-card h-100">
+                <RadzenTabs SelectedIndex="@selectedTabIndex" Change="@OnTabChange">
+                    <Tabs>
+                        <RadzenTabsItem Text="HTML" Icon="code">
+                            <RadzenTextArea @bind-Value="htmlInput" Class="code-editor" Style="height: calc(100vh - 300px); width: 100%;" />
+                        </RadzenTabsItem>
+                        <RadzenTabsItem Text="CSS" Icon="brush">
+                            <RadzenTextArea @bind-Value="cssInput" Class="code-editor" Style="height: calc(100vh - 300px); width: 100%;" />
+                        </RadzenTabsItem>
+                        <RadzenTabsItem Text="JavaScript" Icon="javascript">
+                            <RadzenTextArea @bind-Value="jsInput" Class="code-editor" Style="height: calc(100vh - 300px); width: 100%;" />
+                        </RadzenTabsItem>
+                    </Tabs>
+                </RadzenTabs>
+            </RadzenCard>
+        </RadzenSplitterPane>
+        <RadzenSplitterPane Size="50%" Min="30%" Max="70%">
+            <RadzenCard class="preview-card h-100">
+                <RadzenStack Orientation="Orientation.Vertical" Gap="1rem" class="h-100">
+                    <RadzenStack Orientation="Orientation.Horizontal" JustifyContent="JustifyContent.SpaceBetween" AlignItems="AlignItems.Center">
+                        <RadzenButton Click="UpdatePreview" Text="Update Preview" ButtonStyle="ButtonStyle.Info" Icon="refresh" />
+                        <RadzenSelectBar @bind-Value="selectedView" AllowNull="false">
+                            <Items>
+                                <RadzenSelectBarItem Text="Preview" Value="@constPreview" Icon="visibility" />
+                                <RadzenSelectBarItem Text="Source" Value="@constSource" Icon="code" />
+                            </Items>
+                        </RadzenSelectBar>
+                    </RadzenStack>
+                    <div class="preview-pane flex-grow-1">
+                        <RadzenCard class="h-100">
+                            @if (selectedView == constPreview)
+                            {
+                                @if (renderFragment != null)
+                                {
+                                    @renderFragment
+                                }
+                            }
+                            else
+                            {
+                                <RadzenTextArea Value="@generatedRazorCode" ReadOnly="true" Style="width: 100%; height: 100%;" Class="code-editor" />
+                            }
+                        </RadzenCard>
+                    </div>
+                </RadzenStack>
+            </RadzenCard>
+        </RadzenSplitterPane>
+    </RadzenSplitter>
+
+    <RadzenCard class="rz-mt-4 rz-mx-4 rz-p-2 rz-text-align-center">
+        <RadzenText TextStyle="TextStyle.Caption">BlazorPen - A Blazor CodePen Clone | Created with ❤️ using Blazor</RadzenText>
+    </RadzenCard>
+</div>
+
+@code {
+    private string componentName = string.Empty;
+    private string selectedComponentName = string.Empty;
+    private string htmlInput = @"<h3>Hello, Blazor!</h3>
+<CounterComponent />
+<CounterComponent />
+<CounterComponent />
+<CounterComponent />
+<CounterComponent />
+<CounterComponent />
+<h3>Goodbye, Blazor!</h3>";
+    private string cssInput = "h3 { color: blue; }";
+    private string jsInput = "console.log('JavaScript executed!');";
+    private string selectedView = "preview";
+    private string generatedRazorCode = "intentionally blank";
+    private const string constPreview = "preview";
+    private const string constSource = "source";
+    private int selectedTabIndex = 0;
+
+    private RenderFragment renderFragment;
+    private Dictionary<string, Type> _componentTypes;
+    private List<string> savedComponentNames = new List<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+        _componentTypes = assembly.GetTypes()
+            .Where(t => typeof(ComponentBase).IsAssignableFrom(t) && !t.IsAbstract)
+            .ToDictionary(t => t.Name, t => t);
+
+        await LoadSavedComponentNames();
+    }
+
+    private async Task LoadSavedComponentNames()
+    {
+        var namesJson = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "SavedComponentNames");
+        if (!string.IsNullOrEmpty(namesJson))
+        {
+            savedComponentNames = System.Text.Json.JsonSerializer.Deserialize<List<string>>(namesJson);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                window.setupCodeEditor = function() {
+                    console.log('Code editor setup complete');
+                };
+
+                window.updateCodeEditor = function(index) {
+                    console.log('Switched to tab index: ' + index);
+                };
+            ");
+
+            await JSRuntime.InvokeVoidAsync("setupCodeEditor");
+        }
+    }
+
+    private void OnDropDownChange(object value)
+    {
+        if (value != null)
+        {
+            componentName = value.ToString();
+        }
+    }
+
+    private async Task OnTabChange(int index)
+    {
+        selectedTabIndex = index;
+        await JSRuntime.InvokeVoidAsync("updateCodeEditor", index);
+    }
+
+    private void UpdatePreview()
+    {
+        generatedRazorCode = GenerateRazorComponentCode();
+
+        renderFragment = builder =>
+        {
+            var sequence = 0;
+            builder.OpenElement(sequence++, "style");
+            builder.AddContent(sequence++, cssInput);
+            builder.CloseElement();
+            RenderContent(builder, ref sequence, htmlInput);
+            JSRuntime.InvokeVoidAsync("eval", jsInput);
+        };
+    }
+
+    private void RenderContent(RenderTreeBuilder builder, ref int sequence, string content)
+    {
+        var remainingContent = content;
+
+        while (!string.IsNullOrEmpty(remainingContent))
+        {
+            var componentMatch = _componentTypes.Keys
+                .Select(tag => new { Tag = tag, Index = remainingContent.IndexOf($"<{tag}", StringComparison.OrdinalIgnoreCase) })
+                .Where(m => m.Index != -1)
+                .OrderBy(m => m.Index)
+                .FirstOrDefault();
+
+            if (componentMatch == null)
+            {
+                builder.AddMarkupContent(sequence++, remainingContent);
+                break;
+            }
+
+            if (componentMatch.Index > 0)
+            {
+                builder.AddMarkupContent(sequence++, remainingContent.Substring(0, componentMatch.Index));
+            }
+
+            var tagCloseIndex = remainingContent.IndexOf("/>", componentMatch.Index, StringComparison.OrdinalIgnoreCase);
+            var componentHtml = remainingContent.Substring(componentMatch.Index, tagCloseIndex - componentMatch.Index + 2);
+            var componentType = _componentTypes[componentMatch.Tag];
+
+            builder.OpenComponent(sequence++, componentType);
+            builder.CloseComponent();
+
+            remainingContent = remainingContent.Substring(tagCloseIndex + 2);
+        }
+    }
+
+    private async Task SaveComponent()
+    {
+        if (string.IsNullOrWhiteSpace(componentName))
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", "Please enter a component name before saving.");
+            return;
+        }
+
+        var componentData = new
+        {
+            ComponentName = componentName,
+            HtmlInput = htmlInput,
+            CssInput = cssInput,
+            JsInput = jsInput
+        };
+
+        var jsonData = System.Text.Json.JsonSerializer.Serialize(componentData);
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", componentName, jsonData);
+
+        if (!savedComponentNames.Contains(componentName))
+        {
+            savedComponentNames.Add(componentName);
+            await SaveComponentNames();
+        }
+
+        NotificationService.Notify(NotificationSeverity.Success, "Success", $"Component '{componentName}' saved successfully!");
+        await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", generatedRazorCode);
+        NotificationService.Notify(NotificationSeverity.Info, "Info", "Razor component code copied to clipboard!");
+    }
+
+    private async Task SaveComponentNames()
+    {
+        var namesJson = System.Text.Json.JsonSerializer.Serialize(savedComponentNames);
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "SavedComponentNames", namesJson);
+    }
+
+    private string GenerateRazorComponentCode()
+    {
+        return $@"
+@page ""/{componentName.ToLower()}""
+@using Microsoft.AspNetCore.Components
+@using Microsoft.JSInterop
+
+<div class=""{componentName.ToLower()}-container"">
+    {htmlInput}
+</div>
+
+<style>
+    {cssInput}
+</style>
+
+<script>
+    {jsInput}
+</script>
+
+@code {{
+    // Your code-behind logic can be added here
+}}
+";
+    }
+
+    private async Task LoadComponent()
+    {
+        if (string.IsNullOrWhiteSpace(componentName))
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", "Please select or enter a component name to load.");
+            return;
+        }
+
+        var jsonData = await JSRuntime.InvokeAsync<string>("localStorage.getItem", componentName);
+        if (jsonData == null)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"No saved component found with the name '{componentName}'.");
+            return;
+        }
+
+        try
+        {
+            var componentData = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(jsonData);
+
+            if (componentData != null)
+            {
+                htmlInput = componentData["HtmlInput"];
+                cssInput = componentData["CssInput"];
+                jsInput = componentData["JsInput"];
+
+                NotificationService.Notify(NotificationSeverity.Success, "Success", $"Component '{componentName}' loaded successfully!");
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Error loading component: {ex.Message}");
+        }
+    }
+}

@@ -1,0 +1,63 @@
+
+html, body {
+    overflow: hidden;
+}
+
+.component-pen-container {
+    display: flex;
+    flex-direction: column;
+    height: 92vh;
+    overflow: auto;
+}
+
+.component-pen-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+.preview-pane {
+    height: calc(90%);
+    display: flex;
+    flex-direction: column;
+}
+
+.editor-card, .preview-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.code-editor {
+    font-family: 'Fira Code', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    background-color: #2d2d2d;
+    color: #f8f8f2;
+}
+
+.rz-tabview {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.rz-tabview-panels {
+    flex: 1;
+    overflow: hidden;
+}
+
+.rz-tabview-panel {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+
+.rz-textarea {
+    flex: 1;
+    resize: none;
+    height: calc(95%);
+    width: calc(95%);
+}
