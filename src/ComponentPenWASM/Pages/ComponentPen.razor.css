@@ -10,6 +10,7 @@ html, body {
     overflow: auto;
 }
 
+
 .component-pen-content {
     flex: 1;
     overflow: hidden;
@@ -60,4 +61,43 @@ html, body {
     resize: none;
     height: calc(95%);
     width: calc(95%);
+}
+/*____________*/
+
+/* Soft Blue and Gray Theme for ComponentPen */
+
+.component-pen-container {
+    background-color: #f5f7fa;
+}
+
+.rz-card.editor-card, .rz-card.preview-card {
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.rz-tabview-nav {
+    background-color: #e3e8ef;
+}
+
+.rz-tabview-selected {
+    background-color: #3f51b5 !important;
+    color: #ffffff !important;
+}
+
+.code-editor {
+    background-color: #f8f9fa;
+    color: #333333;
+    border: 1px solid #e0e0e0;
+}
+
+.rz-button-md.rz-button-primary {
+    background-color: #3f51b5;
+}
+
+.rz-button-md.rz-button-secondary {
+    background-color: #78909c;
+}
+
+.rz-button-md.rz-button-info {
+    background-color: #2196f3;
 }

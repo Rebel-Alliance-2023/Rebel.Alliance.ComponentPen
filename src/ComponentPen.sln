@@ -5,6 +5,11 @@ VisualStudioVersion = 17.10.35027.167
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ComponentPenWASM", "ComponentPenWASM\ComponentPenWASM.csproj", "{00007E71-0C90-4B53-A4D5-E2D5605F5CBE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Presentations", "Presentations", "{259C6413-F627-49BF-B775-7918F78CAAE1}"
+	ProjectSection(SolutionItems) = preProject
+		VideoSlides.md = VideoSlides.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
