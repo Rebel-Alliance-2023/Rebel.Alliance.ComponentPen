@@ -2,7 +2,7 @@
 @inject RebelThemeService ThemeService
 
 <div class="themed-layout" style="@ThemeService.GetBodyBackgroundStyle()">
-    <div class="content" style="color: @ThemeService.GetTextColor();">
+    <div class="content">
         @ChildContent
     </div>
 </div>
@@ -23,12 +23,15 @@
 }
 
 <style>
+    @((MarkupString)ThemeService.GenerateThemeCssVariables())
+
     .themed-layout {
         min-height: 100vh;
-        transition: background 0.3s ease;
+        transition: background-color 0.3s ease;
     }
 
     .content {
         padding: 20px;
+        color: var(--theme-color1);
     }
 </style>

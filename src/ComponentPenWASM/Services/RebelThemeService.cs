@@ -1,5 +1,6 @@
 ﻿using ComponentPenWASM;
 using System;
+using System.Text;
 
 namespace ComponentPenWASM.Services
 {
@@ -17,29 +18,43 @@ namespace ComponentPenWASM.Services
 			OnThemeChange?.Invoke();
 		}
 
-		public string GetCurrentGradient()
+		public string GetColor(string colorKey)
+		{
+			if (currentTheme == null || !currentTheme.Palette.Colors.ContainsKey(colorKey))
+			{
+				return "#000000";
+			}
+			return currentTheme.Palette.Colors[colorKey];
+		}
+
+		public string GenerateThemeCssVariables()
 		{
 			if (currentTheme == null)
 			{
-				return "";
+				return string.Empty;
 			}
-			return isDarkMode ? currentTheme.DarkModeGradient : currentTheme.LightModeGradient;
+
+			var sb = new StringBuilder();
+			sb.AppendLine(":root {");
+			foreach (var (key, value) in currentTheme.Palette.Colors)
+			{
+				sb.AppendLine($"  --theme-{key}: {value};");
+			}
+			sb.AppendLine("}");
+			return sb.ToString();
 		}
 
 		public string GetBodyBackgroundStyle()
 		{
-			var gradient = GetCurrentGradient();
-			return $"background: {gradient};";
+			if (currentTheme == null)
+			{
+				return string.Empty;
+			}
+			string backgroundColor = isDarkMode ? GetColor("color1") : GetColor("color5");
+			return $"background-color: {backgroundColor};";
 		}
 
-		public string GetTextColor()
-		{
-			return isDarkMode ? "#ffffff" : "#000000";
-		}
 
-		public string GetComponentBackgroundColor()
-		{
-			return isDarkMode ? "rgba(0, 0, 0, 0.5)" : "rgba(255, 255, 255, 0.5)";
-		}
+		public bool IsDarkMode => isDarkMode;
 	}
 }

@@ -25,17 +25,7 @@
     <PropertyColumn Property="@(t => t.Id)" Title="ID" />
     <PropertyColumn Property="@(t => t.Title)" Title="Theme" />
     <TemplateColumn Title="Preview">
-        <svg width="100" height="50">
-            <rect width="100" height="50" style="@($"fill:url(#gradient{context.Id})")" />
-            <defs>
-                <linearGradient id="@($"gradient{context.Id}")" x1="0%" y1="0%" x2="100%" y2="0%">
-                    @foreach (var stop in ParseGradient(isDarkMode ? context.DarkModeGradient : context.LightModeGradient))
-                    {
-                        <stop offset="@stop.Offset" stop-color="@stop.Color" />
-                    }
-                </linearGradient>
-            </defs>
-        </svg>
+        <div class="theme-preview" style="@($"background: {(isDarkMode ? context.DarkModeGradient : context.LightModeGradient)}")"></div>
     </TemplateColumn>
     <TemplateColumn>
         <button class="btn btn-primary" @onclick="@(() => SelectTheme(context))">Select</button>
@@ -74,7 +64,6 @@
             .Where(t => t.Title.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
             .AsQueryable();
 
-        // Use reflection to set the read-only property
         var totalItemCountProperty = typeof(PaginationState).GetProperty("TotalItemCount");
         if (totalItemCountProperty != null && totalItemCountProperty.CanWrite)
         {
@@ -87,11 +76,18 @@
     private async Task SelectTheme(GradientTheme theme)
     {
         selectedTheme = theme;
-        ThemeService.SetTheme(theme, isDarkMode);
-        await OnThemeChanged.InvokeAsync((theme, isDarkMode));
+        await NotifyThemeChanged();
     }
 
     private async Task OnThemeModeChanged()
+    {
+        if (selectedTheme != null)
+        {
+            await NotifyThemeChanged();
+        }
+    }
+
+    private async Task NotifyThemeChanged()
     {
         if (selectedTheme != null)
         {
@@ -99,46 +95,11 @@
             await OnThemeChanged.InvokeAsync((selectedTheme, isDarkMode));
         }
     }
-
-    private class GradientStop
-    {
-        public string Offset { get; set; } = string.Empty;
-        public string Color { get; set; } = string.Empty;
-    }
-
-    private List<GradientStop> ParseGradient(string gradientString)
-    {
-        var stops = new List<GradientStop>();
-        var gradientParts = gradientString.Replace("linear-gradient(", "").TrimEnd(')').Split(',');
-
-        for (int i = 0; i < gradientParts.Length; i++)
-        {
-            var part = gradientParts[i].Trim();
-            var colorAndOffset = part.Split(' ');
-
-            if (colorAndOffset.Length >= 2)
-            {
-                stops.Add(new GradientStop
-                {
-                    Color = colorAndOffset[0],
-                    Offset = colorAndOffset[1]
-                });
-            }
-            else if (i > 0) // If there's no explicit offset, use the previous stop's offset
-            {
-                stops.Add(new GradientStop
-                {
-                    Color = colorAndOffset[0],
-                    Offset = stops[i - 1].Offset
-                });
-            }
-        }
-
-        return stops;
-    }
 }
 
+
 <style>
+    /* Theme Switcher specific styles */
     .controls {
         display: flex;
         justify-content: space-between;
@@ -172,5 +133,11 @@
 
     .mode-toggle {
         margin-bottom: 20px;
+    }
+
+    .theme-preview {
+        width: 100px;
+        height: 50px;
+        border-radius: 4px;
     }
 </style>
