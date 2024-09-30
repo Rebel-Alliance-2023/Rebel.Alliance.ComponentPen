@@ -76,7 +76,7 @@
 
             "Three-Column" => @"
                 <header class='header'>Header</header>
-                <div class='main-content'>
+                <div class='main-content three-column'>
                     <aside class='sidebar sidebar-left'>Left Sidebar</aside>
                     <main class='content'>Main Content</main>
                     <aside class='sidebar sidebar-right'>Right Sidebar</aside>
@@ -218,8 +218,8 @@
         --header-color: var(--theme-color5);
         --content-bg: var(--theme-color5);
         --content-color: var(--theme-color1);
-        --sidebar-bg: var(--theme-color4);
-        --sidebar-color: var(--theme-color1);
+        --sidebar-bg: var(--theme-color3);
+        --sidebar-color: var(--theme-color5);
         --footer-bg: var(--theme-color2);
         --footer-color: var(--theme-color5);
     }
@@ -229,8 +229,8 @@
         --header-color: var(--theme-color1);
         --content-bg: var(--theme-color1);
         --content-color: var(--theme-color5);
-        --sidebar-bg: var(--theme-color2);
-        --sidebar-color: var(--theme-color5);
+        --sidebar-bg: var(--theme-color3);
+        --sidebar-color: var(--theme-color1);
         --footer-bg: var(--theme-color4);
         --footer-color: var(--theme-color1);
     }
@@ -238,47 +238,106 @@
     .layout-preview .header {
         background-color: var(--header-bg);
         color: var(--header-color);
+        padding: 1rem;
     }
 
     .layout-preview .main-content {
-        background-color: var(--content-bg);
-        color: var(--content-color);
+        display: flex;
+        min-height: 200px;
+    }
+
+    .layout-preview .main-content.three-column {
+        flex-direction: row;
     }
 
     .layout-preview .sidebar {
         background-color: var(--sidebar-bg);
         color: var(--sidebar-color);
+        padding: 1rem;
+        width: 200px;
+        flex-shrink: 0;
+    }
+
+    .layout-preview .content {
+        background-color: var(--content-bg);
+        color: var(--content-color);
+        flex: 1;
+        padding: 1rem;
     }
 
     .layout-preview .footer {
         background-color: var(--footer-bg);
         color: var(--footer-color);
+        padding: 1rem;
+    }
+
+    .layout-preview .grid-container {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .layout-preview .grid-container > div {
         background-color: var(--sidebar-bg);
         color: var(--sidebar-color);
+        padding: 1rem;
     }
 
     .layout-preview .hero {
         background-color: var(--header-bg);
         color: var(--header-color);
+        padding: 2rem;
+        text-align: center;
     }
 
     .layout-preview .featured-content {
         background-color: var(--sidebar-bg);
         color: var(--sidebar-color);
+        padding: 2rem;
+    }
+
+    .layout-preview .article-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(3, 1fr);
     }
 
     .layout-preview .article-grid article {
         background-color: var(--content-bg);
         color: var(--content-color);
         border: 1px solid var(--sidebar-bg);
+        padding: 1rem;
     }
 
     .layout-preview .full-screen-section {
         background-color: var(--content-bg);
         color: var(--content-color);
         border-bottom: 1px solid var(--sidebar-bg);
+        padding: 2rem;
+        min-height: 50vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* Responsive adjustments */
+    @@media (max-width: 768px) {
+        .layout-preview .main-content,
+        .layout-preview .main-content.three-column {
+            flex-direction: column;
+        }
+
+        .layout-preview .sidebar {
+            width: 100%;
+        }
+
+        .layout-preview .grid-container {
+            grid-template-columns: 1fr;
+        }
+
+        .layout-preview .article-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
