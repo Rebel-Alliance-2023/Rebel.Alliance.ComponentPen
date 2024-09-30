@@ -3,25 +3,27 @@
 @inject RebelThemeService ThemeService
 @inject IJSRuntime JSRuntime
 
-<h3>LayoutPen</h3>
+<div class="@(ThemeService.IsDarkMode ? "dark-mode" : "light-mode")">
+    <h3 class="layout-pen-header">LayoutPen</h3>
 
-<div class="layout-pen-container">
-    <div class="layout-controls">
-        <select @bind="selectedLayout">
-            @foreach (var layout_item in layouts)
-            {
-                <option value="@layout_item">@layout_item</option>
-            }
-        </select>
-        <button @onclick="ApplyLayout">Apply Layout</button>
-    </div>
+    <div class="layout-pen-container">
+        <div class="layout-controls">
+            <select @bind="selectedLayout">
+                @foreach (var layout_item in layouts)
+                {
+                    <option value="@layout_item">@layout_item</option>
+                }
+            </select>
+            <button @onclick="ApplyLayout">Apply Layout</button>
+        </div>
 
-    <div class="layout-preview layout-container @(ThemeService.IsDarkMode ? "dark-mode" : "light-mode")">
-        @((MarkupString)currentLayoutHtml)
-    </div>
+        <div class="layout-preview layout-container">
+            @((MarkupString)currentLayoutHtml)
+        </div>
 
-    <div class="theme-switcher-container">
-        <ThemeSwitcher OnThemeChanged="HandleThemeChanged" />
+        <div class="theme-switcher-container">
+            <ThemeSwitcher OnThemeChanged="HandleThemeChanged" />
+        </div>
     </div>
 </div>
 
@@ -177,6 +179,19 @@
 <style>
     @((MarkupString)ThemeService.GenerateThemeCssVariables())
 
+    .light-mode {
+        --layout-pen-header-color: black;
+    }
+
+    .dark-mode {
+        --layout-pen-header-color: white;
+    }
+
+    .layout-pen-header {
+        color: var(--layout-pen-header-color);
+        margin-bottom: 1rem;
+    }
+
     .layout-pen-container {
         display: flex;
         flex-direction: column;
@@ -198,7 +213,7 @@
         transition: all 0.3s ease;
     }
 
-    .layout-preview.light-mode {
+    .light-mode .layout-preview {
         --header-bg: var(--theme-color2);
         --header-color: var(--theme-color5);
         --content-bg: var(--theme-color5);
@@ -209,7 +224,7 @@
         --footer-color: var(--theme-color5);
     }
 
-    .layout-preview.dark-mode {
+    .dark-mode .layout-preview {
         --header-bg: var(--theme-color4);
         --header-color: var(--theme-color1);
         --content-bg: var(--theme-color1);
