@@ -1,0 +1,271 @@
+﻿@page "/layoutpen"
+@using ComponentPenWASM.Services
+@inject RebelThemeService ThemeService
+@inject IJSRuntime JSRuntime
+
+<h3>LayoutPen</h3>
+
+<div class="layout-pen-container" style="@ThemeService.GetBodyBackgroundStyle()">
+    <div class="layout-controls">
+        <select @bind="selectedLayout">
+            @foreach (var layout_item in layouts)
+            {
+                <option value="@layout_item">@layout_item</option>
+            }
+        </select>
+        <button @onclick="ApplyLayout">Apply Layout</button>
+    </div>
+
+    <div class="layout-preview" style="color: @ThemeService.GetTextColor(); background-color: @ThemeService.GetComponentBackgroundColor();">
+        @((MarkupString)currentLayoutHtml)
+    </div>
+
+    <div class="theme-switcher-container">
+        <ThemeSwitcher OnThemeChanged="HandleThemeChanged" />
+    </div>
+</div>
+
+@code {
+    private string selectedLayout = "Classic";
+    private string currentLayoutHtml = "";
+    private List<string> layouts = new List<string>
+    {
+        "Classic",
+        "Full-Width Header",
+        "Three-Column",
+        "Grid",
+        "Centered",
+        "Hero Layout",
+        "Magazine Layout",
+        "Single Page Layout"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSavedTheme();
+        ApplyLayout();
+    }
+
+    private void ApplyLayout()
+    {
+        currentLayoutHtml = GetLayoutHtml(selectedLayout);
+    }
+
+    private string GetLayoutHtml(string layout)
+    {
+        return layout switch
+        {
+            "Classic" => @"
+                <header>Header</header>
+                <div class='content'>
+                    <aside>Sidebar</aside>
+                    <main>Main Content</main>
+                </div>
+                <footer>Footer</footer>",
+
+            "Full-Width Header" => @"
+                <header>Header</header>
+                <div class='content'>
+                    <main>Main Content</main>
+                    <aside>Sidebar</aside>
+                </div>
+                <footer>Footer</footer>",
+
+            "Three-Column" => @"
+                <header>Header</header>
+                <div class='content'>
+                    <aside>Left Sidebar</aside>
+                    <main>Main Content</main>
+                    <aside>Right Sidebar</aside>
+                </div>
+                <footer>Footer</footer>",
+
+            "Grid" => @"
+                <header>Header</header>
+                <div class='grid-content'>
+                    <div>Grid Item 1</div>
+                    <div>Grid Item 2</div>
+                    <div>Grid Item 3</div>
+                    <div>Grid Item 4</div>
+                </div>
+                <footer>Footer</footer>",
+
+            "Centered" => @"
+                <header>Header</header>
+                <div class='centered-content'>
+                    <main>Centered Main Content</main>
+                </div>
+                <footer>Footer</footer>",
+
+            "Hero Layout" => @"
+                <header>Header</header>
+                <div class='hero-section'>
+                    <h1>Hero Title</h1>
+                    <p>Hero Subtitle or Call to Action</p>
+                </div>
+                <main>Main Content</main>
+                <footer>Footer</footer>",
+
+            "Magazine Layout" => @"
+                <header>Header</header>
+                <div class='featured-content'>
+                    <h2>Featured Content</h2>
+                    <p>Large image or slider could go here</p>
+                </div>
+                <div class='articles-grid'>
+                    <article>Article 1</article>
+                    <article>Article 2</article>
+                    <article>Article 3</article>
+                    <article>Article 4</article>
+                    <article>Article 5</article>
+                    <article>Article 6</article>
+                </div>
+                <footer>Footer</footer>",
+
+            "Single Page Layout" => @"
+                <header>Header</header>
+                <section class='full-screen-section'>
+                    <h2>Section 1</h2>
+                    <p>Full-screen content goes here</p>
+                </section>
+                <section class='full-screen-section'>
+                    <h2>Section 2</h2>
+                    <p>Full-screen content goes here</p>
+                </section>
+                <section class='full-screen-section'>
+                    <h2>Section 3</h2>
+                    <p>Full-screen content goes here</p>
+                </section>
+                <footer>Footer</footer>",
+
+            _ => "<p>Select a layout</p>"
+        };
+    }
+
+    private async Task HandleThemeChanged((GradientTheme theme, bool isDarkMode) themeInfo)
+    {
+        ThemeService.SetTheme(themeInfo.theme, themeInfo.isDarkMode);
+        await SaveThemePreference(themeInfo.theme.Id, themeInfo.isDarkMode);
+    }
+
+    private async Task SaveThemePreference(int themeId, bool isDarkMode)
+    {
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "selectedThemeId", themeId);
+        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "isDarkMode", isDarkMode);
+    }
+
+    private async Task LoadSavedTheme()
+    {
+        var savedThemeId = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "selectedThemeId");
+        var savedIsDarkMode = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "isDarkMode");
+
+        if (!string.IsNullOrEmpty(savedThemeId) && int.TryParse(savedThemeId, out int themeId))
+        {
+            var theme = GradientThemes.AllThemes.FirstOrDefault(t => t.Id == themeId);
+            if (theme != null)
+            {
+                bool isDarkMode = !string.IsNullOrEmpty(savedIsDarkMode) && bool.Parse(savedIsDarkMode);
+                ThemeService.SetTheme(theme, isDarkMode);
+            }
+        }
+    }
+}
+
+<style>
+    .layout-pen-container {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+        transition: background 0.3s ease;
+    }
+
+    .layout-controls {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .layout-preview {
+        border: 1px solid #ccc;
+        padding: 1rem;
+        min-height: 300px;
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+        .layout-preview header, .layout-preview footer {
+            background-color: rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .layout-preview .content {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .layout-preview aside {
+            flex: 1;
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 1rem;
+        }
+
+        .layout-preview main {
+            flex: 2;
+            padding: 1rem;
+        }
+
+        .layout-preview .grid-content {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+            .layout-preview .grid-content > div {
+                background-color: rgba(0, 0, 0, 0.05);
+                padding: 1rem;
+            }
+
+        .layout-preview .centered-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+        }
+
+        .layout-preview .hero-section {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .layout-preview .featured-content {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+
+        .layout-preview .articles-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+            .layout-preview .articles-grid article {
+                background-color: rgba(0, 0, 0, 0.05);
+                padding: 1rem;
+            }
+
+        .layout-preview .full-screen-section {
+            min-height: 300px;
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+</style>

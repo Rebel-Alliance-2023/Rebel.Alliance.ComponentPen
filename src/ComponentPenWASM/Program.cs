@@ -1,3 +1,4 @@
+using ComponentPenWASM.Services;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Radzen;
@@ -16,6 +17,7 @@ namespace ComponentPenWASM
 
             builder.Services.AddScoped<DialogService>();
             builder.Services.AddScoped<NotificationService>();
+            builder.Services.AddScoped<RebelThemeService>();
 
             await builder.Build().RunAsync();
         }
