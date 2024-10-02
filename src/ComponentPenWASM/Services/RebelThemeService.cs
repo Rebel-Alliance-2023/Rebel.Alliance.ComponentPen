@@ -11,6 +11,8 @@ namespace ComponentPenWASM.Services
 
 		public event Action? OnThemeChange;
 
+		public GradientTheme? CurrentTheme => currentTheme;
+
 		public void SetTheme(GradientTheme theme, bool darkMode)
 		{
 			currentTheme = theme;
@@ -53,7 +55,6 @@ namespace ComponentPenWASM.Services
 			string backgroundColor = isDarkMode ? GetColor("color1") : GetColor("color5");
 			return $"background-color: {backgroundColor};";
 		}
-
 
 		public bool IsDarkMode => isDarkMode;
 	}
