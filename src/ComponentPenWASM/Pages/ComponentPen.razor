@@ -72,7 +72,8 @@
                         </RadzenSelectBar>
                     </RadzenStack>
                     <div class="preview-pane flex-grow-1">
-                        <RadzenCard class="h-100">
+
+                        <RadzenCard  class="h-100" JustifyContent="JustifyContent.SpaceBetween">
                             @if (selectedView == constPreview)
                             {
                                 @if (renderFragment != null)
@@ -82,30 +83,31 @@
                             }
                             else if (selectedView == constSource)
                             {
-                                <RadzenTextArea Value="@generatedRazorCode" ReadOnly="true" Style="width: 100%; height: 100%;" Class="code-editor" />
-                            } else if (selectedView == constExplain)
+                                <RadzenTextArea Value="@generatedRazorCode" ReadOnly="true" Style="width: 100%; height: 80%;" Class="code-editor rz-textarea" />
+                            }
+                            else if (selectedView == constExplain)
                             {
                                 @* if chatGptKey is not null then show a radzenButton, 'Clear Key' that when pressed sends a emptry string to SaveChatGptKey() *@
                                 @if (!string.IsNullOrEmpty(chatGptKey))
                                 {
-                                    <RadzenButton Click="@ClearChatGptKey" Text="Clear Key" ButtonStyle="ButtonStyle.Danger" Icon="clear" />
-                                }                                
+                                    <RadzenButton Click="@ClearChatGptKey" Text="Clear Key" ButtonStyle="ButtonStyle.Danger" Icon="clear" class="button-padding" />
+                                }
                                 @if (string.IsNullOrEmpty(chatGptKey))
                                 {
                                     <div class="rz-p-0 rz-display-flex rz-align-items-center">
-                                        <RadzenTextBox @bind-Value="chatGptKey" Change="OnChatGptKeyChange" Placeholder="Enter ChatGPT key" Style="width: 200px; margin-left: 8px;" />
-
-
-                                        <RadzenButton Click="SaveChatGptKey" Text="Submit" ButtonStyle="ButtonStyle.Primary" Icon="save" />
+                                        <RadzenPassword @bind-Value="chatGptKey" Change="OnChatGptKeyChange" Placeholder="Enter ChatGPT key" Style="width: 200px; margin-left: 8px;" />
+                                        <RadzenButton Click="SaveChatGptKey" Text="Submit" ButtonStyle="ButtonStyle.Primary" Icon="save" class="button-padding" />
                                     </div>
                                 }
                                 else
                                 {
-                                    <RadzenButton Click="@ExplainCSS" Text="Get Explanation" ButtonStyle="ButtonStyle.Primary" Icon="help_outline" />
-                                    <RadzenTextArea Value="@codeExplanation" ReadOnly="true" Style="width: 100%; height: 100%;" Class="code-editor" />
-                                }                                
+                                    <RadzenButton Click="@ExplainCSS" Text="Get Explanation" ButtonStyle="ButtonStyle.Primary" Icon="live_help" class="right-align button-padding" />
+                                    <RadzenTextArea id="Explanation" Value="@codeExplanation" ReadOnly="true" Style="width: 100%; height: 80%;" Class="code-editor rz-textarea" />
+                                    <div>@statusMessage</div>
+                                }
                             }
                         </RadzenCard>
+
                     </div>
                 </RadzenStack>
             </RadzenCard>
@@ -141,6 +143,8 @@
     private RenderFragment? renderFragment;
     private Dictionary<string, Type> _componentTypes = new();
     private List<string> savedComponentNames = new List<string>();
+
+    private string statusMessage = string.Empty;
 
     private string chatGptKey = "";
     private string codeExplanation = "intentionally blank";
@@ -250,13 +254,14 @@
         try
         {
             codeExplanation = string.Empty;
+            statusMessage = "Preparing to call OpenAI API...";
             StateHasChanged();
-
 
             // Ensure the API key is available
             if (string.IsNullOrEmpty(chatGptKey))
             {
                 codeExplanation = "Please enter your OpenAI API key.";
+                statusMessage = string.Empty;
                 return;
             }
 
@@ -267,11 +272,11 @@
             }
 
             // Prompt to explain the CSS
-            string prompt = $@"Analyze each CSS Class and its constituent elements and describe in detail the role it plays 
-                            in rendering the UI. Be specific and thorough. Here is the Razor component: \n\n{generatedRazorCode}";
+            string prompt = $@"Analyze each CSS Class and its constituent elements and describe in detail the role it plays
+                        in rendering the UI. Be specific and thorough. Here is the Razor component: \n\n{generatedRazorCode}";
 
             // Create the chat client
-            var chatClient = openAIClient.GetChatClient("gpt-4"); //("gpt-4"); gpt-3.5-turbo
+            var chatClient = openAIClient.GetChatClient("gpt-4");
 
             // Create the list of messages
             var messages = new List<ChatMessage>
@@ -279,19 +284,32 @@
             new UserChatMessage(prompt)
         };
 
+            statusMessage = "Calling OpenAI API... This will take about 30 seconds... Patience...";
+            StateHasChanged();
+
             // Call the OpenAI API for chat completion
             var chatCompletionResult = await chatClient.CompleteChatAsync(messages);
+
+            statusMessage = "Processing response...";
+            StateHasChanged();
 
             // Access the ChatCompletion object from the ClientResult
             var chatCompletion = chatCompletionResult.Value;
 
             // Get the result and display it in the CSS Explanation tab
             codeExplanation = chatCompletion.Content[0].Text;
+            statusMessage = "Explanation received.";
         }
         catch (Exception ex)
         {
             codeExplanation = $"Error: {ex.Message}";
+            statusMessage = "Failed to get explanation.";
             NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to get explanation: {ex.Message}");
+        }
+        finally
+        {
+            statusMessage = string.Empty;
+            StateHasChanged();
         }
     }
 
@@ -470,6 +488,8 @@
                 htmlInput = componentData["HtmlInput"];
                 cssInput = componentData["CssInput"];
                 jsInput = componentData["JsInput"];
+
+                generatedRazorCode = GenerateRazorComponentCode();
 
                 NotificationService.Notify(NotificationSeverity.Success, "Success", $"Component '{componentName}' loaded successfully!");
                 StateHasChanged();
