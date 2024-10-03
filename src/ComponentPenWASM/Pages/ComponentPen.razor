@@ -46,13 +46,13 @@
                 <RadzenTabs SelectedIndex="@selectedTabIndex" Change="@OnTabChange">
                     <Tabs>
                         <RadzenTabsItem Text="HTML" Icon="code">
-                            <RadzenTextArea @bind-Value="htmlInput" Class="code-editor" Style="height: calc(100vh - 300px); width: 100%;" />
+                            <RadzenTextArea @bind-Value="htmlInput" Change="OnInputsChange" Class="code-editor" Style="height: calc(100vh - 300px); width: 100%;" />
                         </RadzenTabsItem>
                         <RadzenTabsItem Text="CSS" Icon="brush">
-                            <RadzenTextArea @bind-Value="cssInput" Class="code-editor" Style="height: calc(100vh - 300px); width: 100%;" />
+                            <RadzenTextArea @bind-Value="cssInput" Change="OnInputsChange" Class="code-editor" Style="height: calc(100vh - 300px); width: 100%;" />
                         </RadzenTabsItem>
                         <RadzenTabsItem Text="JavaScript" Icon="javascript">
-                            <RadzenTextArea @bind-Value="jsInput" Class="code-editor" Style="height: calc(100vh - 300px); width: 100%;" />
+                            <RadzenTextArea @bind-Value="jsInput" Change="OnInputsChange" Class="code-editor" Style="height: calc(100vh - 300px); width: 100%;" />
                         </RadzenTabsItem>
                     </Tabs>
                 </RadzenTabs>
@@ -123,8 +123,7 @@
     private string componentName = string.Empty;
     private string selectedComponentName = string.Empty;
     private string htmlInput = @"<h3>Hello, Blazor!</h3>
-<CounterComponent />
-<CounterComponent />
+
 <CounterComponent />
 <CounterComponent />
 <CounterComponent />
@@ -159,6 +158,24 @@
 
         await LoadSavedComponentNames();
         await LoadChatGptKey();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JSRuntime.InvokeVoidAsync("eval", @"
+                window.setupCodeEditor = function() {
+                    console.log('Code editor setup complete');
+                };
+
+                window.updateCodeEditor = function(index) {
+                    console.log('Switched to tab index: ' + index);
+                };
+            ");
+
+            await JSRuntime.InvokeVoidAsync("setupCodeEditor");
+        }
     }
 
     private async void OnChatGptKeyChange(string value)
@@ -322,22 +339,10 @@
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    private async void OnInputsChange()
     {
-        if (firstRender)
-        {
-            await JSRuntime.InvokeVoidAsync("eval", @"
-                window.setupCodeEditor = function() {
-                    console.log('Code editor setup complete');
-                };
-
-                window.updateCodeEditor = function(index) {
-                    console.log('Switched to tab index: ' + index);
-                };
-            ");
-
-            await JSRuntime.InvokeVoidAsync("setupCodeEditor");
-        }
+        generatedRazorCode = GenerateRazorComponentCode();
+        StateHasChanged();
     }
 
     private void OnDropDownChange(object value)
@@ -367,6 +372,8 @@
             RenderContent(builder, ref sequence, htmlInput);
             JSRuntime.InvokeVoidAsync("eval", jsInput);
         };
+
+        StateHasChanged();
     }
 
     private void RenderContent(RenderTreeBuilder builder, ref int sequence, string content)
@@ -481,7 +488,7 @@
 
         try
         {
-            var componentData = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(jsonData);
+            Dictionary<string,string>? componentData = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(jsonData);
 
             if (componentData != null)
             {
