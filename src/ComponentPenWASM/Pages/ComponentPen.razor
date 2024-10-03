@@ -5,6 +5,8 @@
 @using System.Reflection
 @using System.Linq
 @using System.Text.RegularExpressions
+@using OpenAI
+@using OpenAI.Chat
 @using Radzen
 @using Radzen.Blazor
 @inject IJSRuntime JSRuntime
@@ -65,6 +67,7 @@
                             <Items>
                                 <RadzenSelectBarItem Text="Preview" Value="@constPreview" Icon="visibility" />
                                 <RadzenSelectBarItem Text="Source" Value="@constSource" Icon="code" />
+                                <RadzenSelectBarItem Text="Explain" Value="@constExplain" Icon="code" />
                             </Items>
                         </RadzenSelectBar>
                     </RadzenStack>
@@ -77,9 +80,30 @@
                                     @renderFragment
                                 }
                             }
-                            else
+                            else if (selectedView == constSource)
                             {
                                 <RadzenTextArea Value="@generatedRazorCode" ReadOnly="true" Style="width: 100%; height: 100%;" Class="code-editor" />
+                            } else if (selectedView == constExplain)
+                            {
+                                @* if chatGptKey is not null then show a radzenButton, 'Clear Key' that when pressed sends a emptry string to SaveChatGptKey() *@
+                                @if (!string.IsNullOrEmpty(chatGptKey))
+                                {
+                                    <RadzenButton Click="@ClearChatGptKey" Text="Clear Key" ButtonStyle="ButtonStyle.Danger" Icon="clear" />
+                                }                                
+                                @if (string.IsNullOrEmpty(chatGptKey))
+                                {
+                                    <div class="rz-p-0 rz-display-flex rz-align-items-center">
+                                        <RadzenTextBox @bind-Value="chatGptKey" Change="OnChatGptKeyChange" Placeholder="Enter ChatGPT key" Style="width: 200px; margin-left: 8px;" />
+
+
+                                        <RadzenButton Click="SaveChatGptKey" Text="Submit" ButtonStyle="ButtonStyle.Primary" Icon="save" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <RadzenButton Click="@ExplainCSS" Text="Get Explanation" ButtonStyle="ButtonStyle.Primary" Icon="help_outline" />
+                                    <RadzenTextArea Value="@codeExplanation" ReadOnly="true" Style="width: 100%; height: 100%;" Class="code-editor" />
+                                }                                
                             }
                         </RadzenCard>
                     </div>
@@ -108,13 +132,19 @@
     private string jsInput = "console.log('JavaScript executed!');";
     private string selectedView = "preview";
     private string generatedRazorCode = "intentionally blank";
+
     private const string constPreview = "preview";
     private const string constSource = "source";
+    private const string constExplain = "explain";
     private int selectedTabIndex = 0;
 
-    private RenderFragment renderFragment;
-    private Dictionary<string, Type> _componentTypes;
+    private RenderFragment? renderFragment;
+    private Dictionary<string, Type> _componentTypes = new();
     private List<string> savedComponentNames = new List<string>();
+
+    private string chatGptKey = "";
+    private string codeExplanation = "intentionally blank";
+    private OpenAIClient openAIClient;
 
     protected override async Task OnInitializedAsync()
     {
@@ -124,6 +154,145 @@
             .ToDictionary(t => t.Name, t => t);
 
         await LoadSavedComponentNames();
+        await LoadChatGptKey();
+    }
+
+    private async void OnChatGptKeyChange(string value)
+    {
+        chatGptKey = value;
+        await SaveChatGptKey();
+    }
+
+    private async Task ClearChatGptKey()
+    {
+        try
+        {
+            chatGptKey = string.Empty;
+
+            // Remove the key from local storage
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "ChatGptKey");
+
+            // Set the OpenAI client to null
+            openAIClient = null;
+
+            // Show success notification
+            NotificationService.Notify(NotificationSeverity.Info, "Info", "OpenAI API key cleared.");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Error clearing API key: {ex.Message}");
+        }
+
+        // Update the UI
+        StateHasChanged();
+    }
+
+    private async Task SaveChatGptKey()
+    {
+        if (string.IsNullOrEmpty(chatGptKey))
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", "Please enter your OpenAI API key.");
+            return;
+        }
+
+        try
+        {
+            // Save the key to local storage
+            await JSRuntime.InvokeVoidAsync("localStorage.setItem", "ChatGptKey", chatGptKey);
+
+            // Re-instantiate the OpenAI client with the new key
+            openAIClient = new OpenAIClient(chatGptKey);
+
+            // Show success notification
+            NotificationService.Notify(NotificationSeverity.Success, "Success", "OpenAI API key saved successfully!");
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Error saving API key: {ex.Message}");
+        }
+
+        // Update the UI
+        StateHasChanged();
+    }
+
+    private async Task LoadChatGptKey()
+    {
+        try
+        {
+            var key = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "ChatGptKey");
+            if (!string.IsNullOrEmpty(key))
+            {
+                chatGptKey = key;
+
+                // Instantiate the OpenAI client
+                openAIClient = new OpenAIClient(chatGptKey);
+
+                // Show success notification
+                NotificationService.Notify(NotificationSeverity.Success, "Success", "OpenAI API key loaded successfully!");
+            }
+            else
+            {
+                chatGptKey = string.Empty;
+                openAIClient = null;
+
+                // Show info notification
+                NotificationService.Notify(NotificationSeverity.Info, "Info", "No OpenAI API key found.");
+            }
+        }
+        catch (Exception ex)
+        {
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Error loading API key: {ex.Message}");
+        }
+    }
+
+    private async Task ExplainCSS()
+    {
+        try
+        {
+            codeExplanation = string.Empty;
+            StateHasChanged();
+
+
+            // Ensure the API key is available
+            if (string.IsNullOrEmpty(chatGptKey))
+            {
+                codeExplanation = "Please enter your OpenAI API key.";
+                return;
+            }
+
+            // Instantiate the OpenAI client if not already done
+            if (openAIClient == null)
+            {
+                openAIClient = new OpenAIClient(chatGptKey);
+            }
+
+            // Prompt to explain the CSS
+            string prompt = $@"Analyze each CSS Class and its constituent elements and describe in detail the role it plays 
+                            in rendering the UI. Be specific and thorough. Here is the Razor component: \n\n{generatedRazorCode}";
+
+            // Create the chat client
+            var chatClient = openAIClient.GetChatClient("gpt-4"); //("gpt-4"); gpt-3.5-turbo
+
+            // Create the list of messages
+            var messages = new List<ChatMessage>
+        {
+            new UserChatMessage(prompt)
+        };
+
+            // Call the OpenAI API for chat completion
+            var chatCompletionResult = await chatClient.CompleteChatAsync(messages);
+
+            // Access the ChatCompletion object from the ClientResult
+            var chatCompletion = chatCompletionResult.Value;
+
+            // Get the result and display it in the CSS Explanation tab
+            codeExplanation = chatCompletion.Content[0].Text;
+        }
+        catch (Exception ex)
+        {
+            codeExplanation = $"Error: {ex.Message}";
+            NotificationService.Notify(NotificationSeverity.Error, "Error", $"Failed to get explanation: {ex.Message}");
+        }
     }
 
     private async Task LoadSavedComponentNames()
@@ -131,7 +300,7 @@
         var namesJson = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "SavedComponentNames");
         if (!string.IsNullOrEmpty(namesJson))
         {
-            savedComponentNames = System.Text.Json.JsonSerializer.Deserialize<List<string>>(namesJson);
+            savedComponentNames = System.Text.Json.JsonSerializer.Deserialize<List<string>>(namesJson) ?? new List<string>();
         }
     }
 
@@ -157,7 +326,7 @@
     {
         if (value != null)
         {
-            componentName = value.ToString();
+            componentName = value.ToString() ?? string.Empty;
         }
     }
 
