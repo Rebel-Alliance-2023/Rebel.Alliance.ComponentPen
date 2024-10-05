@@ -298,23 +298,30 @@
             statusMessage = "Calling OpenAI API... This may take a few moments...";
             StateHasChanged();
 
-            var userMessage = new UserMessage(
-                    $@"Analyze each CSS Class and its constituent elements and
-                describe in detail the role it plays in rendering the UI.
-                Be specific and thorough. Here is the Razor component: \n\n{generatedRazorCode}"
+            var combinedMessage = new UserMessage(
+                    $@"
+                The output is in two parts:
+
+                1. Analyze each CSS Class and its constituent elements and describe in detail the role it plays in rendering the UI.
+                Be specific and thorough and return the explanation in markdown format (your default).
+
+                2. Create a section 'Advanced Concepts':
+                Find two or three advanced CSS concepts in the supplied component and explain each in detail.
+
+                Here is the Razor component: \n\n{generatedRazorCode}"
             );
 
             // Clear any previous explanation
             codeExplanation = string.Empty;
 
             // Stream the response from OpenAI API
-            await foreach (string chunk in openAIClient.StreamChatCompletions(userMessage, maxTokens: 2000))
+            await foreach (string chunk in openAIClient.StreamChatCompletions(combinedMessage, maxTokens: 2000))
             {
                 codeExplanation += chunk;
                 statusMessage = "Processing response...";
                 StateHasChanged(); // Update the UI with the new chunk
             }
-
+            // Update the HTML explanation with the first response
             htmlExplanation = Markdig.Markdown.ToHtml(codeExplanation);
 
             statusMessage = "Explanation received.";
